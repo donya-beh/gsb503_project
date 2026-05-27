@@ -176,8 +176,6 @@ POPULATION = {
     'South Sudan': 11194000, 'Liberia': 5058000, 'Vanuatu': 307000,
 }
 
-
-@st.cache_data
 from utils import load_data, load_sdk
 
 
