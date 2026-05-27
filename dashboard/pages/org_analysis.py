@@ -23,9 +23,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-from utils import load_data_for_org, get_all_orgs, CLUSTER_COLORS
-
-ACCENT_COLORS = ["#76b900", "#00c2ff", "#ff6b35", "#b39ddb", "#ffca28", "#ef9a9a"]
+from utils import load_data_for_org, get_all_orgs, CLUSTER_COLORS, ACCENT_COLORS
 
 
 def plot_cluster_comparison(df, org_names, show_org_labels=True):

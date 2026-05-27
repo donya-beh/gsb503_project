@@ -19,7 +19,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-from utils import load_data_for_country, load_sdk_for_country, get_all_countries, _query, CLUSTER_COLORS, POPULATION, ACCENT_COLORS
+from utils import load_data_for_country, load_sdk_for_country, get_all_countries, load_data, CLUSTER_COLORS, POPULATION, ACCENT_COLORS
 
 
 def plot_world_map(all_countries_list, selected_countries=None):
