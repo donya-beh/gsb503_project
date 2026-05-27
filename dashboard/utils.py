@@ -1,75 +1,14 @@
 """
 utils.py — shared data loading for the NVIDIA Developer Analytics dashboard.
 All pages import load_data() and load_sdk() from here.
-Data is loaded from AWS S3.
+Data is queried from Snowflake.
 """
 
 import streamlit as st
 import pandas as pd
-import boto3
-import io
+import snowflake.connector
 
-# ── Country code → name mapping (used by load_sdk) ────────────────────────────
-COUNTRY_CODE_MAP = {
-    'MM': 'Myanmar', 'LT': 'Lithuania', 'DZ': 'Algeria', 'CI': "Cote D'Ivoire",
-    'FI': 'Finland', 'AZ': 'Azerbaijan', 'UA': 'Ukraine', 'RO': 'Romania',
-    'ZM': 'Zambia', 'SL': 'Sierra Leone', 'NL': 'The Netherlands',
-    'LA': "Lao People's Democratic Republic", 'MN': 'Mongolia', 'BW': 'Botswana',
-    'PL': 'Poland', 'AM': 'Armenia', 'PS': 'Palestine, State of', 'RE': 'Reunion',
-    'MK': 'North Macedonia', 'MX': 'Mexico', 'PF': 'French Polynesia', 'EE': 'Estonia',
-    'VG': 'British Virgin Islands', 'CN': 'China', 'AT': 'Austria',
-    'RU': 'Russian Federation', 'IQ': 'Iraq', 'AD': 'Andorra', 'HR': 'Croatia',
-    'LI': 'Liechtenstein', 'SV': 'El Salvador', 'NP': 'Nepal', 'CZ': 'Czechia',
-    'PT': 'Portugal', 'SO': 'Somalia', 'GG': 'Guernsey', 'GH': 'Ghana',
-    'HK': 'Hong Kong', 'BN': 'Brunei', 'CV': 'Cape Verde', 'TW': 'Taiwan',
-    'BD': 'Bangladesh', 'LB': 'Lebanon', 'PY': 'Paraguay', 'CL': 'Chile',
-    'ID': 'Indonesia', 'LY': 'Libya', 'AU': 'Australia', 'SA': 'Saudi Arabia',
-    'PK': 'Pakistan', 'CA': 'Canada', 'MW': 'Malawi', 'UZ': 'Uzbekistan',
-    'GB': 'United Kingdom', 'MT': 'Malta', 'YE': 'Yemen', 'KZ': 'Kazakhstan',
-    'BR': 'Brazil', 'BY': 'Belarus', 'HN': 'Honduras', 'MD': 'Moldova, Republic of',
-    'GT': 'Guatemala', 'DE': 'Germany', 'GN': 'Guinea', 'ES': 'Spain', 'MO': 'Macao',
-    'IR': 'Iran', 'EC': 'Ecuador', 'BH': 'Bahrain', 'VI': 'Virgin Islands, U.S.',
-    'IL': 'Israel', 'MR': 'Mauritania', 'TR': 'Turkey', 'VE': 'Venezuela',
-    'ME': 'Montenegro', 'ZA': 'South Africa', 'CR': 'Costa Rica', 'GU': 'Guam',
-    'KR': 'Korea, Republic of', 'TZ': 'Tanzania', 'US': 'United States',
-    'RS': 'Serbia', 'AL': 'Albania', 'MY': 'Malaysia', 'IN': 'India',
-    'JM': 'Jamaica', 'AE': 'United Arab Emirates', 'CM': 'Cameroon', 'TG': 'Togo',
-    'RW': 'Rwanda', 'FR': 'France', 'CH': 'Switzerland', 'MG': 'Madagascar',
-    'TN': 'Tunisia', 'GR': 'Greece', 'TD': 'Chad', 'MC': 'Monaco',
-    'BA': 'Bosnia and Herzegovina', 'JO': 'Jordan', 'ET': 'Ethiopia',
-    'SG': 'Singapore', 'BF': 'Burkina Faso', 'IT': 'Italy', 'CU': 'Cuba',
-    'MV': 'Maldives', 'FO': 'Faroe Islands', 'SE': 'Sweden', 'BG': 'Bulgaria',
-    'PH': 'Philippines', 'FJ': 'Fiji', 'GE': 'Georgia', 'SK': 'Slovakia',
-    'CW': 'Curacao', 'LV': 'Latvia', 'PE': 'Peru', 'MU': 'Mauritius',
-    'MZ': 'Mozambique', 'DO': 'Dominican Republic', 'QA': 'Qatar', 'BZ': 'Belize',
-    'TH': 'Thailand', 'EG': 'Egypt', 'BJ': 'Benin', 'JP': 'Japan',
-    'VC': 'Saint Vincent and the Grenadines', 'ZW': 'Zimbabwe', 'SN': 'Senegal',
-    'NZ': 'New Zealand', 'OM': 'Oman', 'LK': 'Sri Lanka', 'BT': 'Bhutan',
-    'HU': 'Hungary', 'KE': 'Kenya', 'CY': 'Cyprus', 'SI': 'Slovenia',
-    'ML': 'Mali', 'GP': 'Guadeloupe', 'UG': 'Uganda', 'IE': 'Ireland',
-    'KW': 'Kuwait', 'BE': 'Belgium', 'MA': 'Morocco', 'KH': 'Cambodia',
-    'NI': 'Nicaragua', 'KG': 'Kyrgyzstan', 'TT': 'Trinidad and Tobago',
-    'NO': 'Norway', 'BO': 'Bolivia', 'SY': 'Syria', 'CO': 'Colombia',
-    'IM': 'Isle of Man', 'UY': 'Uruguay', 'NG': 'Nigeria', 'JE': 'Jersey',
-    'AR': 'Argentina', 'PR': 'Puerto Rico', 'LU': 'Luxembourg', 'VN': 'Viet Nam',
-    'IS': 'Iceland', 'AF': 'Afghanistan', 'DK': 'Denmark',
-    'CD': 'Congo, Democratic Republic of the', 'TJ': 'Tajikistan', 'AO': 'Angola',
-    'GL': 'Greenland', 'VA': 'Vatican City', 'KY': 'Cayman Islands',
-    'BM': 'Bermuda', 'AW': 'Aruba', 'MQ': 'Martinique', 'GF': 'French Guiana',
-    'PA': 'Panama', 'SD': 'Sudan', 'LS': 'Lesotho', 'GY': 'Guyana',
-    'HT': 'Haiti', 'GA': 'Gabon', 'ER': 'Eritrea', 'YT': 'Mayotte',
-    'SZ': 'Eswatini', 'BS': 'Bahamas', 'AQ': 'Antarctica', 'LC': 'Saint Lucia',
-    'DJ': 'Djibouti', 'TM': 'Turkmenistan', 'SR': 'Suriname', 'SC': 'Seychelles',
-    'GI': 'Gibraltar', 'MF': 'Saint-Martin (French part)', 'BB': 'Barbados',
-    'CG': 'Congo', 'NE': 'Niger', 'GD': 'Grenada', 'BI': 'Burundi',
-    'KN': 'Saint Kitts and Nevis', 'NC': 'New Caledonia', 'GM': 'Gambia',
-    'SM': 'San Marino', 'AG': 'Antigua and Barbuda', 'MP': 'Northern Mariana Islands',
-    'TC': 'Turks and Caicos Islands', 'PG': 'Papua New Guinea', 'SX': 'Sint Maarten',
-    'KP': "Korea, Democratic People's Republic of", 'TL': 'Timor-Leste',
-    'AI': 'Anguilla', 'WF': 'Wallis and Futuna', 'SS': 'South Sudan',
-    'LR': 'Liberia', 'VU': 'Vanuatu',
-}
-
+# ── Cluster colors ────────────────────────────────────────────────────────────
 CLUSTER_COLORS = {
     "Technical": "#4a90d9",
     "Passive":   "#a8c4e0",
@@ -77,6 +16,16 @@ CLUSTER_COLORS = {
     "Attendee":  "#e8a87c",
     "Unicorn":   "#76b900",
 }
+
+CLUSTER_NAME_MAP = {
+    1: "Technical",
+    2: "Passive",
+    3: "Casual",
+    4: "Attendee",
+    5: "Unicorn",
+}
+
+ACCENT_COLORS = ["#76b900", "#00c2ff", "#ff6b35", "#b39ddb", "#ffca28", "#ef9a9a"]
 
 POPULATION = {
     'Myanmar': 54410000, 'Lithuania': 2794000, 'Algeria': 44617000,
@@ -155,48 +104,159 @@ POPULATION = {
 }
 
 
-def _s3_client():
-    return boto3.client(
-        "s3",
-        aws_access_key_id=st.secrets["AWS_ACCESS_KEY_ID"],
-        aws_secret_access_key=st.secrets["AWS_SECRET_ACCESS_KEY"],
-        region_name=st.secrets["AWS_REGION"],
+def _get_connection():
+    return snowflake.connector.connect(
+        account=st.secrets["snowflake"]["account"],
+        user=st.secrets["snowflake"]["user"],
+        password=st.secrets["snowflake"]["password"],
+        warehouse=st.secrets["snowflake"]["warehouse"],
+        database=st.secrets["snowflake"]["database"],
+        schema=st.secrets["snowflake"]["schema"],
     )
 
-def _read_parquet_from_s3(key: str) -> pd.DataFrame:
-    s3  = _s3_client()
-    obj = s3.get_object(Bucket=st.secrets["AWS_BUCKET"], Key=key)
-    return pd.read_parquet(io.BytesIO(obj["Body"].read()))
+
+def _query(sql: str) -> pd.DataFrame:
+    conn = _get_connection()
+    try:
+        df = pd.read_sql(sql, conn)
+        df.columns = [c.lower() for c in df.columns]
+        return df
+    finally:
+        conn.close()
 
 
 @st.cache_data
 def load_data() -> pd.DataFrame:
-    """Load dashboard_ready.parquet from S3."""
-    df = _read_parquet_from_s3("dashboard_ready.parquet")
+    """Load all activity data from Snowflake."""
+    df = _query("SELECT * FROM activities")
 
-    CLUSTER_NAME_MAP = {
-        1: "Technical",
-        2: "Passive",
-        3: "Casual",
-        4: "Attendee",
-        5: "Unicorn",
-    }
     df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
+    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
+    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
 
     return df
 
 
 @st.cache_data
+def load_data_for_country(country: str) -> pd.DataFrame:
+    """Load activity data filtered by country."""
+    df = _query(f"SELECT * FROM activities WHERE country = '{country}'")
+    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
+    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
+    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
+    return df
+
+
+@st.cache_data
+def load_data_for_org(org: str) -> pd.DataFrame:
+    """Load activity data filtered by organization."""
+    df = _query(f"SELECT * FROM activities WHERE normalized_account_name = $${org}$$")
+    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
+    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
+    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
+    return df
+
+
+@st.cache_data
+def load_data_for_developer(developer_id: str) -> pd.DataFrame:
+    """Load activity data for a single developer."""
+    df = _query(f"SELECT * FROM activities WHERE developer_id = '{developer_id}'")
+    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
+    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
+    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
+    return df
+
+
+@st.cache_data
+def load_data_for_cluster(cluster: str) -> pd.DataFrame:
+    """Load activity data filtered by cluster name."""
+    cluster_num = {v: k for k, v in CLUSTER_NAME_MAP.items()}.get(cluster)
+    if cluster_num is None:
+        return load_data()
+    df = _query(f"SELECT * FROM activities WHERE cluster = {cluster_num}")
+    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
+    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
+    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
+    return df
+
+
+@st.cache_data
+def load_summary() -> pd.DataFrame:
+    """Load lightweight summary data — all developers, key columns only."""
+    df = _query("""
+        SELECT developer_id, activity, activity_date, activity_score,
+               country, cluster, normalized_account_name, cluster_name
+        FROM activities
+    """)
+    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
+    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
+    return df
+
+
+@st.cache_data
 def load_clean_orgs() -> pd.DataFrame:
-    """Returns load_data() with unclassified org names filtered out."""
-    df = load_data()
-    return df[
-        (df["normalized_account_name"] != "Not Normalized") &
-        (df["normalized_account_name"] != "Unclassified - Invalid")
-    ]
+    """Load data with unclassified org names filtered out."""
+    df = _query("""
+        SELECT * FROM activities
+        WHERE normalized_account_name != 'Not Normalized'
+        AND normalized_account_name != 'Unclassified - Invalid'
+    """)
+    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
+    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
+    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
+    return df
 
 
 @st.cache_data
 def load_sdk() -> pd.DataFrame:
-    """Load sdk_ready.parquet from S3."""
-    return _read_parquet_from_s3("sdk_ready.parquet")
+    """Load SDK downloads from Snowflake."""
+    sdk = _query("SELECT * FROM sdk_downloads")
+    sdk["downloaddate"] = pd.to_datetime(sdk["downloaddate"], errors="coerce")
+    sdk["downloadcount"] = pd.to_numeric(sdk["downloadcount"], errors="coerce").fillna(1)
+    sdk["population"] = sdk["country"].map(POPULATION)
+    sdk["downloads_per_100k"] = (sdk["downloadcount"] / sdk["population"] * 100000).round(2)
+    return sdk
+
+
+@st.cache_data
+def load_sdk_for_country(country: str) -> pd.DataFrame:
+    """Load SDK data for a specific country."""
+    sdk = _query(f"SELECT * FROM sdk_downloads WHERE country = '{country}'")
+    sdk["downloaddate"] = pd.to_datetime(sdk["downloaddate"], errors="coerce")
+    sdk["downloadcount"] = pd.to_numeric(sdk["downloadcount"], errors="coerce").fillna(1)
+    sdk["population"] = sdk["country"].map(POPULATION)
+    sdk["downloads_per_100k"] = (sdk["downloadcount"] / sdk["population"] * 100000).round(2)
+    return sdk
+
+
+@st.cache_data
+def get_all_countries() -> list:
+    """Get list of all countries sorted by developer count."""
+    df = _query("""
+        SELECT country, COUNT(DISTINCT developer_id) as dev_count
+        FROM activities
+        GROUP BY country
+        ORDER BY dev_count DESC
+    """)
+    return df["country"].tolist()
+
+
+@st.cache_data
+def get_all_orgs() -> list:
+    """Get list of all valid organizations sorted by developer count."""
+    df = _query("""
+        SELECT normalized_account_name, COUNT(DISTINCT developer_id) as dev_count
+        FROM activities
+        WHERE normalized_account_name != 'Not Normalized'
+        AND normalized_account_name != 'Unclassified - Invalid'
+        GROUP BY normalized_account_name
+        ORDER BY dev_count DESC
+    """)
+    return df["normalized_account_name"].tolist()
+
+
+@st.cache_data
+def get_all_developers() -> list:
+    """Get list of all developer IDs."""
+    df = _query("SELECT DISTINCT developer_id FROM activities ORDER BY developer_id")
+    return df["developer_id"].tolist()
