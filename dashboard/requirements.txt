@@ -4,3 +4,4 @@ plotly
 pycountry
 pyarrow
 boto3
+matplotlib
