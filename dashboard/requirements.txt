@@ -5,5 +5,3 @@ pycountry
 pyarrow
 boto3
 matplotlib
-snowflake-connector-python
-cryptography

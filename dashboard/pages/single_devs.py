@@ -27,7 +27,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-from utils import load_data_for_developer, _query, CLUSTER_COLORS
+from utils import load_data_for_developer, load_data, CLUSTER_COLORS
 
 plt.rcParams.update({
     "figure.facecolor": "#0d0d0d", "axes.facecolor": "#0d0d0d",
@@ -168,13 +168,11 @@ with st.sidebar:
     st.markdown("---")
 
     try:
-        # Load lightweight list of developers for sidebar filters
         with st.spinner("Loading developers..."):
-            meta = _query("""
-                SELECT DISTINCT developer_id, country, normalized_account_name,
-                       activity, industry_segment_vertical, cluster_name
-                FROM activities
-            """)
+            meta = load_data()[[
+                "developer_id", "country", "normalized_account_name",
+                "activity", "industry_segment_vertical", "cluster_name"
+            ]]
 
         all_ids       = sorted(meta["developer_id"].astype(str).unique())
         all_countries = sorted(meta["country"].dropna().unique())

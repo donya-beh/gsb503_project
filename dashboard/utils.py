@@ -1,12 +1,13 @@
 """
 utils.py — shared data loading for the NVIDIA Developer Analytics dashboard.
 All pages import load_data() and load_sdk() from here.
-Data is queried from Snowflake.
+Data is loaded from AWS S3.
 """
 
 import streamlit as st
 import pandas as pd
-import snowflake.connector
+import boto3
+import io
 
 # ── Cluster colors ────────────────────────────────────────────────────────────
 CLUSTER_COLORS = {
@@ -104,125 +105,67 @@ POPULATION = {
 }
 
 
-def _get_connection():
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
-    from cryptography.hazmat.backends import default_backend
-
-    private_key_str = st.secrets["snowflake"]["private_key"]
-    if "BEGIN" not in private_key_str:
-        private_key_str = f"-----BEGIN PRIVATE KEY-----\n{private_key_str}\n-----END PRIVATE KEY-----"
-
-    private_key = load_pem_private_key(
-        private_key_str.encode(), password=None, backend=default_backend()
+def _s3_client():
+    return boto3.client(
+        "s3",
+        aws_access_key_id=st.secrets["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=st.secrets["AWS_SECRET_ACCESS_KEY"],
+        region_name=st.secrets["AWS_REGION"],
     )
 
-    return snowflake.connector.connect(
-        account=st.secrets["snowflake"]["account"],
-        user=st.secrets["snowflake"]["user"],
-        private_key=private_key,
-        warehouse=st.secrets["snowflake"]["warehouse"],
-        database=st.secrets["snowflake"]["database"],
-        schema=st.secrets["snowflake"]["schema"],
-        session_parameters={"QUOTED_IDENTIFIERS_IGNORE_CASE": "TRUE"},
-    )
-
-
-def _query(sql: str) -> pd.DataFrame:
-    conn = _get_connection()
-    try:
-        df = pd.read_sql(sql, conn)
-        df.columns = [c.lower() for c in df.columns]
-        return df
-    finally:
-        conn.close()
+def _read_parquet_from_s3(key: str) -> pd.DataFrame:
+    s3  = _s3_client()
+    obj = s3.get_object(Bucket=st.secrets["AWS_BUCKET"], Key=key)
+    return pd.read_parquet(io.BytesIO(obj["Body"].read()))
 
 
 @st.cache_data
 def load_data() -> pd.DataFrame:
-    """Load all activity data from Snowflake."""
-    df = _query("SELECT * FROM activities")
-
+    """Load dashboard_ready.parquet from S3."""
+    df = _read_parquet_from_s3("dashboard_ready.parquet")
     df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
     df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
     df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
-
     return df
 
 
 @st.cache_data
 def load_data_for_country(country: str) -> pd.DataFrame:
-    """Load activity data filtered by country."""
-    df = _query(f"SELECT * FROM activities WHERE country = '{country}'")
-    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
-    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
-    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
-    return df
+    df = load_data()
+    return df[df["country"] == country]
 
 
 @st.cache_data
 def load_data_for_org(org: str) -> pd.DataFrame:
-    """Load activity data filtered by organization."""
-    df = _query(f"SELECT * FROM activities WHERE normalized_account_name = $${org}$$")
-    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
-    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
-    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
-    return df
+    df = load_data()
+    return df[df["normalized_account_name"] == org]
 
 
 @st.cache_data
 def load_data_for_developer(developer_id: str) -> pd.DataFrame:
-    """Load activity data for a single developer."""
-    df = _query(f"SELECT * FROM activities WHERE developer_id = '{developer_id}'")
-    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
-    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
-    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
-    return df
+    df = load_data()
+    return df[df["developer_id"] == developer_id]
 
 
 @st.cache_data
 def load_data_for_cluster(cluster: str) -> pd.DataFrame:
-    """Load activity data filtered by cluster name."""
-    cluster_num = {v: k for k, v in CLUSTER_NAME_MAP.items()}.get(cluster)
-    if cluster_num is None:
-        return load_data()
-    df = _query(f"SELECT * FROM activities WHERE cluster = {cluster_num}")
-    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
-    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
-    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
-    return df
-
-
-@st.cache_data
-def load_summary() -> pd.DataFrame:
-    """Load lightweight summary data — all developers, key columns only."""
-    df = _query("""
-        SELECT developer_id, activity, activity_date, activity_score,
-               country, cluster, normalized_account_name, cluster_name
-        FROM activities
-    """)
-    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
-    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
-    return df
+    df = load_data()
+    return df[df["cluster_name"] == cluster]
 
 
 @st.cache_data
 def load_clean_orgs() -> pd.DataFrame:
-    """Load data with unclassified org names filtered out."""
-    df = _query("""
-        SELECT * FROM activities
-        WHERE normalized_account_name != 'Not Normalized'
-        AND normalized_account_name != 'Unclassified - Invalid'
-    """)
-    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
-    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
-    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
-    return df
+    df = load_data()
+    return df[
+        (df["normalized_account_name"] != "Not Normalized") &
+        (df["normalized_account_name"] != "Unclassified - Invalid")
+    ]
 
 
 @st.cache_data
 def load_sdk() -> pd.DataFrame:
-    """Load SDK downloads from Snowflake."""
-    sdk = _query("SELECT * FROM sdk_downloads")
+    """Load sdk_ready.parquet from S3."""
+    sdk = _read_parquet_from_s3("sdk_ready.parquet")
     sdk["downloaddate"] = pd.to_datetime(sdk["downloaddate"], errors="coerce")
     sdk["downloadcount"] = pd.to_numeric(sdk["downloadcount"], errors="coerce").fillna(1)
     sdk["population"] = sdk["country"].map(POPULATION)
@@ -232,43 +175,22 @@ def load_sdk() -> pd.DataFrame:
 
 @st.cache_data
 def load_sdk_for_country(country: str) -> pd.DataFrame:
-    """Load SDK data for a specific country."""
-    sdk = _query(f"SELECT * FROM sdk_downloads WHERE country = '{country}'")
-    sdk["downloaddate"] = pd.to_datetime(sdk["downloaddate"], errors="coerce")
-    sdk["downloadcount"] = pd.to_numeric(sdk["downloadcount"], errors="coerce").fillna(1)
-    sdk["population"] = sdk["country"].map(POPULATION)
-    sdk["downloads_per_100k"] = (sdk["downloadcount"] / sdk["population"] * 100000).round(2)
-    return sdk
+    sdk = load_sdk()
+    return sdk[sdk["country"] == country]
 
 
 @st.cache_data
 def get_all_countries() -> list:
-    """Get list of all countries sorted by developer count."""
-    df = _query("""
-        SELECT country, COUNT(DISTINCT developer_id) as dev_count
-        FROM activities
-        GROUP BY country
-        ORDER BY dev_count DESC
-    """)
-    return df["country"].tolist()
+    df = load_data()
+    return df.drop_duplicates("developer_id").groupby("country")["developer_id"].nunique().sort_values(ascending=False).index.tolist()
 
 
 @st.cache_data
 def get_all_orgs() -> list:
-    """Get list of all valid organizations sorted by developer count."""
-    df = _query("""
-        SELECT normalized_account_name, COUNT(DISTINCT developer_id) as dev_count
-        FROM activities
-        WHERE normalized_account_name != 'Not Normalized'
-        AND normalized_account_name != 'Unclassified - Invalid'
-        GROUP BY normalized_account_name
-        ORDER BY dev_count DESC
-    """)
-    return df["normalized_account_name"].tolist()
+    df = load_clean_orgs()
+    return df.drop_duplicates("developer_id").groupby("normalized_account_name")["developer_id"].nunique().sort_values(ascending=False).index.tolist()
 
 
-@st.cache_data
-def get_all_developers() -> list:
-    """Get list of all developer IDs."""
-    df = _query("SELECT DISTINCT developer_id FROM activities ORDER BY developer_id")
-    return df["developer_id"].tolist()
+def _query(sql: str) -> pd.DataFrame:
+    """Kept for compatibility — returns empty dataframe in S3 mode."""
+    return pd.DataFrame()
