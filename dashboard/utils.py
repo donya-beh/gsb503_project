@@ -78,6 +78,7 @@ CLUSTER_COLORS = {
     "Unicorn":   "#76b900",
 }
 
+POPULATION = {
     'Myanmar': 54410000, 'Lithuania': 2794000, 'Algeria': 44617000,
     "Cote D'Ivoire": 27478000, 'Finland': 5541000, 'Azerbaijan': 10139000,
     'Ukraine': 43531000, 'Romania': 19237000, 'Zambia': 19473000,
@@ -151,14 +152,6 @@ CLUSTER_COLORS = {
     'Sint Maarten': 42000, "Korea, Democratic People's Republic of": 25779000,
     'Timor-Leste': 1318000, 'Anguilla': 15000, 'Wallis and Futuna': 11000,
     'South Sudan': 11194000, 'Liberia': 5058000, 'Vanuatu': 307000,
-}
-
-CLUSTER_COLORS = {
-    "Technical": "#4a90d9",
-    "Passive":   "#a8c4e0",
-    "Casual":    "#b8d98d",
-    "Attendee":  "#e8a87c",
-    "Unicorn":   "#76b900",
 }
 
 
