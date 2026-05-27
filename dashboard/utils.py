@@ -11,19 +11,19 @@ import io
 
 # ── Cluster colors ────────────────────────────────────────────────────────────
 CLUSTER_COLORS = {
-    "Technical": "#4a90d9",
-    "Passive":   "#a8c4e0",
-    "Casual":    "#b8d98d",
-    "Attendee":  "#e8a87c",
-    "Unicorn":   "#76b900",
+    "Passive Users":              "#a8c4e0",
+    "Training & Event Attendees": "#b8d98d",
+    "Technical Power Users":      "#4a90d9",
+    "True Unicorns":              "#76b900",
+    "Casual Participants":        "#e8a87c",
 }
 
 CLUSTER_NAME_MAP = {
-    1: "Technical",
-    2: "Passive",
-    3: "Casual",
-    4: "Attendee",
-    5: "Unicorn",
+    1: "Passive Users",
+    2: "Training & Event Attendees",
+    3: "Technical Power Users",
+    4: "True Unicorns",
+    5: "Casual Participants",
 }
 
 ACCENT_COLORS = ["#76b900", "#00c2ff", "#ff6b35", "#b39ddb", "#ffca28", "#ef9a9a"]
