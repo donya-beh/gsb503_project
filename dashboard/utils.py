@@ -109,7 +109,6 @@ def _get_connection():
     from cryptography.hazmat.backends import default_backend
 
     private_key_str = st.secrets["snowflake"]["private_key"]
-    # Add PEM headers if not present
     if "BEGIN" not in private_key_str:
         private_key_str = f"-----BEGIN PRIVATE KEY-----\n{private_key_str}\n-----END PRIVATE KEY-----"
 
@@ -124,6 +123,7 @@ def _get_connection():
         warehouse=st.secrets["snowflake"]["warehouse"],
         database=st.secrets["snowflake"]["database"],
         schema=st.secrets["snowflake"]["schema"],
+        session_parameters={"QUOTED_IDENTIFIERS_IGNORE_CASE": "TRUE"},
     )
 
 
