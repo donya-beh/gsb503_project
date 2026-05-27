@@ -1,0 +1,2 @@
+*.parquet
+.streamlit/secrets.toml
