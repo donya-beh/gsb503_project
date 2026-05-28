@@ -119,7 +119,7 @@ def _read_parquet_from_s3(key: str) -> pd.DataFrame:
     return pd.read_parquet(io.BytesIO(obj["Body"].read()))
 
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def load_data() -> pd.DataFrame:
     """Load dashboard_ready.parquet from S3."""
     df = _read_parquet_from_s3("dashboard_ready.parquet")
@@ -127,6 +127,17 @@ def load_data() -> pd.DataFrame:
     df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
     df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
     return df
+
+
+@st.cache_data(show_spinner=False)
+def load_sdk() -> pd.DataFrame:
+    """Load sdk_ready.parquet from S3."""
+    sdk = _read_parquet_from_s3("sdk_ready.parquet")
+    sdk["downloaddate"] = pd.to_datetime(sdk["downloaddate"], errors="coerce")
+    sdk["downloadcount"] = pd.to_numeric(sdk["downloadcount"], errors="coerce").fillna(1)
+    sdk["population"] = sdk["country"].map(POPULATION)
+    sdk["downloads_per_100k"] = (sdk["downloadcount"] / sdk["population"] * 100000).round(2)
+    return sdk
 
 
 @st.cache_data
@@ -160,17 +171,6 @@ def load_clean_orgs() -> pd.DataFrame:
         (df["normalized_account_name"] != "Not Normalized") &
         (df["normalized_account_name"] != "Unclassified - Invalid")
     ]
-
-
-@st.cache_data
-def load_sdk() -> pd.DataFrame:
-    """Load sdk_ready.parquet from S3."""
-    sdk = _read_parquet_from_s3("sdk_ready.parquet")
-    sdk["downloaddate"] = pd.to_datetime(sdk["downloaddate"], errors="coerce")
-    sdk["downloadcount"] = pd.to_numeric(sdk["downloadcount"], errors="coerce").fillna(1)
-    sdk["population"] = sdk["country"].map(POPULATION)
-    sdk["downloads_per_100k"] = (sdk["downloadcount"] / sdk["population"] * 100000).round(2)
-    return sdk
 
 
 @st.cache_data
