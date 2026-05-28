@@ -116,14 +116,15 @@ def _s3_client():
 def _read_parquet_from_s3(key: str) -> pd.DataFrame:
     s3  = _s3_client()
     obj = s3.get_object(Bucket=st.secrets["AWS_BUCKET"], Key=key)
-    return pd.read_parquet(io.BytesIO(obj["Body"].read()))
+    df  = pd.read_parquet(io.BytesIO(obj["Body"].read()))
+    df.columns = [c.lower() for c in df.columns]
+    return df
 
 
 @st.cache_data
 def load_data() -> pd.DataFrame:
     """Load dashboard_ready.parquet from S3."""
     df = _read_parquet_from_s3("dashboard_ready.parquet")
-    df.columns = [c.lower() for c in df.columns]
     df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
     df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
     df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
@@ -157,7 +158,6 @@ def load_data_for_cluster(cluster: str) -> pd.DataFrame:
 @st.cache_data
 def load_clean_orgs() -> pd.DataFrame:
     df = load_data()
-    df.columns = [c.lower() for c in df.columns]
     return df[
         (df["normalized_account_name"] != "Not Normalized") &
         (df["normalized_account_name"] != "Unclassified - Invalid")
@@ -168,7 +168,6 @@ def load_clean_orgs() -> pd.DataFrame:
 def load_sdk() -> pd.DataFrame:
     """Load sdk_ready.parquet from S3."""
     sdk = _read_parquet_from_s3("sdk_ready.parquet")
-    sdk.columns = [c.lower() for c in sdk.columns]
     sdk["downloaddate"] = pd.to_datetime(sdk["downloaddate"], errors="coerce")
     sdk["downloadcount"] = pd.to_numeric(sdk["downloadcount"], errors="coerce").fillna(1)
     sdk["population"] = sdk["country"].map(POPULATION)
