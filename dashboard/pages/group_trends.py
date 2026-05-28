@@ -17,7 +17,8 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 }
 .metric-card {
     background: #161616; border: 1px solid #2a2a2a; border-radius: 8px;
-    padding: 20px 24px; margin-bottom: 0; min-height: 110px;
+    padding: 20px 24px; margin-bottom: 0; min-height: 120px;
+    display: flex; flex-direction: column; justify-content: flex-start;
 }
 .metric-label {
     font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
@@ -32,6 +33,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 """, unsafe_allow_html=True)
 
 from utils import load_gt_kpis, load_gt_cluster_dist, load_gt_sequences, load_gt_transition_pairs, CLUSTER_COLORS, CLUSTER_NAME_MAP
+from predictive import render_group_predictive
 
 ACCENT_COLORS = ["#76b900", "#00c2ff", "#ff6b35", "#b39ddb", "#ffca28", "#ef9a9a", "#80cbc4"]
 
@@ -134,12 +136,9 @@ def plot_sankey(seq_df, title="Developer Activity Pathway"):
                   color="rgba(255,255,255,0.08)"),
     ))
     fig.update_layout(
-        title=dict(text=(f"{title}<br><sup>Left = 1st · Middle = 2nd · Right = 3rd "
-                         f"({n2:,} devs with 2+ steps, {n3:,} with 3+)</sup>"),
-                   font=dict(color="#ffffff", size=13)),
         paper_bgcolor="#0d0d0d", plot_bgcolor="#0d0d0d",
         font=dict(color="#ffffff", size=11, family="monospace"),
-        height=520, margin=dict(l=20, r=20, t=80, b=20),
+        height=520, margin=dict(l=20, r=20, t=20, b=20),
     )
     return fig
 
@@ -185,10 +184,10 @@ try:
     # ── KPI cards ──
     c1, c2, c3, c4 = st.columns(4)
     for col, lbl, value, sub in [
-        (c1, "Total Users",         f"{int(kpi_row['total_users']):,}", "unique developers"),
-        (c2, "Top Activity",        kpi_row["top_activity"],             "most common"),
-        (c3, "Avg Sequence Length", f"{int(kpi_row['avg_seq_len'])}",   "activities per developer"),
-        (c4, "Avg Activity Score",  f"{kpi_row['avg_score']}",          f"σ = {kpi_row['std_score']}"),
+        (c1, "Total Users",         f"{int(kpi_row['total_users']):,}",          "unique developers"),
+        (c2, "Top Activity",        kpi_row["top_activity"],                       "most common"),
+        (c3, "Avg Sequence Length", f"{int(kpi_row['avg_seq_len'])}",             "activities per developer"),
+        (c4, "Avg Activity Score",  f"{round(float(kpi_row['avg_score']), 2):.2f}", f"σ = {round(float(kpi_row['std_score']), 2):.2f}"),
     ]:
         with col:
             st.markdown(f"""
@@ -201,13 +200,14 @@ try:
     st.markdown("<br>", unsafe_allow_html=True)
 
     if mode == "All":
-        st.markdown('<div class="section-header">Cluster Size Distribution</div>',
+        st.markdown('<div class="section-header">Cluster Breakdown</div>',
                     unsafe_allow_html=True)
         st.plotly_chart(plot_cluster_distribution(dist_df), use_container_width=True)
         st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown('<div class="section-header">Developer Activity Pathways</div>',
                 unsafe_allow_html=True)
+    st.caption("This chart shows the flow of developer activities from first activity on the left, to second activity in the middle, and third activity on the right. The connecting bands show where developers go next. Thicker bands represent paths followed by more developers.")
     sankey = plot_sankey(seq_view, f"Activity Pathway — {label}")
     if sankey:
         st.plotly_chart(sankey, use_container_width=True)
@@ -216,14 +216,17 @@ try:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown('<div class="section-header">Transition Probabilities</div>',
+    st.markdown('<div class="section-header">Transition Probability Matrix</div>',
                 unsafe_allow_html=True)
-    st.caption("Each cell shows the probability (%) of moving from row activity → column activity.")
+    st.caption("This visual shows the likelihood of moving from one activity to another. Each row represents the current activity, and each column represents the next activity. Brighter cells indicate more common next steps.")
     heatmap = plot_transition_heatmap(pairs_view)
     if heatmap:
         st.plotly_chart(heatmap, use_container_width=True)
     else:
         st.caption("Not enough data to build transition matrix.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    render_group_predictive()
 
 except Exception as e:
     st.error(f"Error loading data: {e}")

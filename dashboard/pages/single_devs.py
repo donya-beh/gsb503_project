@@ -11,7 +11,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 [data-testid="stSidebar"] { background-color: #111111; border-right: 1px solid #222; }
 [data-testid="stSidebar"] * { color: #ccc !important; }
 [data-testid="stSidebar"] input { background: #1a1a1a !important; border: 1px solid #333 !important; color: #fff !important; border-radius: 4px !important; }
-.metric-card { background: #161616; border: 1px solid #2a2a2a; border-radius: 8px; padding: 20px 24px; margin-bottom: 0; }
+.metric-card { background: #161616; border: 1px solid #2a2a2a; border-radius: 8px; padding: 20px 24px; margin-bottom: 0; min-height: 120px; display: flex; flex-direction: column; justify-content: flex-start; }
 .metric-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #666; margin-bottom: 6px; font-family: 'DM Mono', monospace; }
 .metric-value { font-size: 28px; font-weight: 600; color: #76b900; font-family: 'DM Mono', monospace; line-height: 1; word-break: break-word; }
 .metric-sub { font-size: 12px; color: #555; margin-top: 4px; font-family: 'DM Mono', monospace; }
@@ -26,6 +26,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 """, unsafe_allow_html=True)
 
 from utils import load_developer_sample, CLUSTER_COLORS
+from predictive import render_dev_predictive
 
 plt.rcParams.update({
     "figure.facecolor": "#0d0d0d", "axes.facecolor": "#0d0d0d",
@@ -55,25 +56,31 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
     row0             = dev_df.iloc[0]
     org              = row0.get("normalized_account_name", "—")
     cluster          = row0.get("cluster_name", None)
-    cluster_badge    = f'<div class="cluster-badge">{cluster}</div>' if pd.notna(cluster) else ""
+    cluster_color    = CLUSTER_COLORS.get(cluster, "#00c2ff") if cluster else "#00c2ff"
+    cluster_badge    = (f'<div style="display:inline-block;background:{cluster_color}22;'
+                        f'border:1px solid {cluster_color}55;color:{cluster_color};'
+                        f'font-size:10px;font-weight:600;letter-spacing:0.1em;'
+                        f'text-transform:uppercase;font-family:DM Mono,monospace;'
+                        f'padding:3px 10px;border-radius:2px;">{cluster}</div>'
+                        if pd.notna(cluster) else "")
 
+    org_display = org if pd.notna(org) else "Unknown Organization"
     st.markdown(f"""
     <div class="profile-header">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
             <div class="nvidia-badge">NVIDIA Developer</div>
             {cluster_badge}
         </div>
-        <div class="profile-id">ID · {developer_id}</div>
-        <div class="profile-title">{org if pd.notna(org) else "Unknown Organization"}</div>
+        <div class="profile-title">ID {developer_id} — {org_display}</div>
     </div>""", unsafe_allow_html=True)
 
     c1, c2, c3, c4, c5 = st.columns(5)
     for col, label, value, sub in [
-        (c1, "Total Activities", f"{total_activities:,}",        "interactions logged"),
-        (c2, "Activity Types",   f"{activity_types}",             "distinct activities"),
-        (c3, "Avg Score",        f"{avg_score:.1f}",              f"σ = {std_score:.2f}"),
-        (c4, "Longest Gap",      f"{longest_gap}d",               "between activities"),
-        (c5, "Last Seen",        last_seen.strftime("%b %d, %Y"), ""),
+        (c1, "Total Activities", f"{total_activities:,}",                       "interactions logged"),
+        (c2, "Activity Types",   f"{activity_types}",                            "distinct activities"),
+        (c3, "Avg Score",        f"{round(float(avg_score), 2):.2f}",           f"σ = {round(float(std_score), 2):.2f}"),
+        (c4, "Longest Gap",      f"{longest_gap}d",                              "between activities"),
+        (c5, "Last Seen",        last_seen.strftime("%b %d, %Y"),               ""),
     ]:
         with col:
             st.markdown(f"""<div class="metric-card">
@@ -94,7 +101,6 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
             "Region":         row0.get("region", "—"),
             "Industry":       row0.get("industry_segment_vertical", "—"),
             "Dev Areas":      row0.get("development_areas", "—"),
-            "Account Type":   row0.get("account_type", "—"),
             "First Activity": dev_df["activity_date"].min().strftime("%b %d, %Y"),
             "Last Activity":  last_seen.strftime("%b %d, %Y"),
         }
@@ -106,10 +112,11 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
             </div>""", unsafe_allow_html=True)
 
     with right_col:
-        st.markdown('<div class="section-header">Activity Breakdown</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Activity Mix</div>', unsafe_allow_html=True)
         act_counts = dev_df["activity"].value_counts()
         colors     = [ACCENT_COLORS[i % len(ACCENT_COLORS)] for i in range(len(act_counts))]
-        fig, ax    = plt.subplots(figsize=(5, max(2, len(act_counts) * 0.4)))
+        fig_height = max(2, len(act_counts) * 0.4)
+        fig, ax    = plt.subplots(figsize=(5, fig_height))
         bars = ax.barh(act_counts.index[::-1], act_counts.values[::-1],
                        color=colors[::-1], height=0.6)
         for bar, val in zip(bars, act_counts.values[::-1]):
@@ -124,6 +131,7 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="section-header">Activity Timeline</div>', unsafe_allow_html=True)
+    st.caption("Each row represents an activity, and each dot marks when that activity happened. The x-axis displays the days since the developer's first activity, showing when activities occurred relative to first engagement with the platform.")
 
     act_types = dev_df["activity"].unique()
     color_map = {a: ACCENT_COLORS[i % len(ACCENT_COLORS)] for i, a in enumerate(act_types)}
@@ -137,8 +145,8 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
         fig1.add_trace(go.Scatter(
             x=sub["days_since_activity_1"], y=sub["label"],
             mode="markers", name=act_type,
-            marker=dict(size=10, color=color_map[act_type],
-                        line=dict(width=1, color="#0d0d0d")),
+            marker=dict(size=16, color=color_map[act_type],
+                        line=dict(width=1.5, color="#0d0d0d")),
             hovertemplate="<b>%{y}</b><br>Day %{x}<extra></extra>",
         ))
     fig1.update_layout(
@@ -164,6 +172,8 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
         tbl = dev_df[available].sort_values("activity_date", ascending=False).reset_index(drop=True)
         tbl["activity_date"] = tbl["activity_date"].dt.strftime("%Y-%m-%d")
         st.dataframe(tbl, use_container_width=True, hide_index=True)
+
+    render_dev_predictive(developer_id)
 
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────

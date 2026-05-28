@@ -15,7 +15,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
     text-transform: uppercase; color: #555; font-family: 'DM Mono', monospace;
     margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #222; }
 .metric-card { background: #161616; border: 1px solid #2a2a2a; border-radius: 8px;
-    padding: 20px 24px; margin-bottom: 0; }
+    padding: 20px 24px; margin-bottom: 0; min-height: 120px; display: flex; flex-direction: column; justify-content: flex-start; }
 .metric-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
     text-transform: uppercase; color: #666; margin-bottom: 6px;
     font-family: 'DM Mono', monospace; }
@@ -27,6 +27,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 """, unsafe_allow_html=True)
 
 from utils import load_geo_kpis, load_geo_activity_mix, load_geo_cluster_breakdown, load_geo_sequences, load_sdk_for_country, CLUSTER_COLORS, ACCENT_COLORS, POPULATION
+from predictive import render_geo_predictive
 
 
 def plot_world_map(all_countries_list, selected_countries=None):
@@ -167,13 +168,9 @@ def plot_sankey(seq_df, country):
                   color="rgba(255,255,255,0.08)"),
     ))
     fig.update_layout(
-        title=dict(text=(f"Activity Pathway: {country}<br>"
-                         f"<sup>Left = 1st · Middle = 2nd · Right = 3rd "
-                         f"({len(pairs_1_2):,} devs with 2+ steps)</sup>"),
-                   font=dict(color="#ffffff", size=13)),
         paper_bgcolor="#0d0d0d", plot_bgcolor="#0d0d0d",
         font=dict(color="#ffffff", size=11, family="monospace"),
-        height=500, margin=dict(l=20, r=20, t=80, b=20),
+        height=500, margin=dict(l=20, r=20, t=20, b=20),
     )
     return fig
 
@@ -320,18 +317,17 @@ try:
     all_countries = [c for c in all_countries if c != "Unknown"]
 
     with st.sidebar:
-        st.markdown("### 🌍 Geographic Explorer")
+        st.markdown("### 🌍 Geographic Profiles")
         st.markdown("---")
-        st.caption("Click countries on the map or use the list below.")
+        st.caption("Use the sidebar to select up to 3 countries to explore or compare.")
         st.markdown("---")
         sidebar_countries = st.multiselect(
             "Select Countries (up to 3)", options=all_countries,
             max_selections=3, placeholder="Choose countries...",
         )
 
-    st.markdown('<div class="section-header">Developer Distribution by Country</div>',
+    st.markdown('<div class="section-header">Developer Insights by Country</div>',
                 unsafe_allow_html=True)
-    st.caption("Click countries on the map to select them. Select up to 3 to compare.")
 
     if "map_selected" not in st.session_state:
         st.session_state.map_selected = []
@@ -396,7 +392,7 @@ try:
                     (col1, "Total Developers", f"{int(row['total_developers']):,}", "unique developers"),
                     (col2, "Total Activities", f"{int(row['total_activities']):,}", "interactions logged"),
                     (col3, "Activity Types",   f"{int(row['activity_types'])}",     "distinct activities"),
-                    (col4, "Avg Score",        f"{row['avg_score']}",               f"σ = {row['std_score']}"),
+                    (col4, "Avg Score",        f"{round(float(row['avg_score']), 2):.2f}", f"σ = {round(float(row['std_score']), 2):.2f}"),
                     (col5, "Top Cluster",      str(row["top_cluster"]),             ""),
                 ]:
                     with col:
@@ -424,7 +420,7 @@ try:
                              use_container_width=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
-            st.markdown('<div class="section-header">Developer Type Breakdown</div>',
+            st.markdown('<div class="section-header">Cluster Breakdown</div>',
                         unsafe_allow_html=True)
             cluster_view = cluster_df[cluster_df["country"].isin(selected_countries)]
             st.plotly_chart(plot_cluster_breakdown(cluster_view, selected_countries),
@@ -441,11 +437,14 @@ try:
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown('<div class="section-header">Developer Activity Pathways</div>',
                             unsafe_allow_html=True)
+                st.caption("This chart shows the flow of developer activities from first activity on the left, to second activity in the middle, and third activity on the right. The connecting bands show where developers go next. Thicker bands represent paths followed by more developers.")
                 sankey = plot_sankey(seq_df, selected_countries[0])
                 if sankey:
                     st.plotly_chart(sankey, use_container_width=True)
                 else:
                     st.caption("Not enough sequential activity data.")
+                st.markdown("<br>", unsafe_allow_html=True)
+                render_geo_predictive(selected_countries[0])
 
         with tab_sdk:
             try:

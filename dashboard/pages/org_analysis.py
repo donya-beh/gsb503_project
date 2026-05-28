@@ -17,7 +17,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
     padding-bottom: 8px; border-bottom: 1px solid #222;
 }
 .metric-card { background: #161616; border: 1px solid #2a2a2a; border-radius: 8px;
-    padding: 20px 24px; margin-bottom: 0; }
+    padding: 20px 24px; margin-bottom: 0; min-height: 120px; display: flex; flex-direction: column; justify-content: flex-start; }
 .metric-label { font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
     text-transform: uppercase; color: #666; margin-bottom: 6px;
     font-family: 'DM Mono', monospace; }
@@ -29,6 +29,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 """, unsafe_allow_html=True)
 
 from utils import load_org_kpis, load_org_activity_mix, load_org_cluster_breakdown, load_org_sequences, CLUSTER_COLORS, ACCENT_COLORS
+from predictive import render_org_predictive
 
 
 def plot_cluster_breakdown(cluster_df, orgs):
@@ -132,12 +133,9 @@ def plot_sankey(seq_df, org_name):
                   color="rgba(255,255,255,0.08)"),
     ))
     fig.update_layout(
-        title=dict(text=(f"Activity Pathway: {org_name[:50]}<br>"
-                         f"<sup>Left = 1st · Middle = 2nd · Right = 3rd</sup>"),
-                   font=dict(color="#ffffff", size=13)),
         paper_bgcolor="#0d0d0d", plot_bgcolor="#0d0d0d",
         font=dict(color="#ffffff", size=11, family="monospace"),
-        height=500, margin=dict(l=20, r=20, t=80, b=20),
+        height=500, margin=dict(l=20, r=20, t=20, b=20),
     )
     return fig
 
@@ -234,11 +232,14 @@ try:
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown('<div class="section-header">Developer Activity Pathways</div>',
                         unsafe_allow_html=True)
+            st.caption("This chart shows the flow of developer activities from first activity on the left, to second activity in the middle, and third activity on the right. The connecting bands show where developers go next. Thicker bands represent paths followed by more developers.")
             sankey = plot_sankey(seq_df, selected_orgs[0])
             if sankey:
                 st.plotly_chart(sankey, use_container_width=True)
             else:
                 st.caption("Not enough sequential activity data.")
+            st.markdown("<br>", unsafe_allow_html=True)
+            render_org_predictive(selected_orgs[0])
 
 except Exception as e:
     st.error(f"Error loading data: {e}")
