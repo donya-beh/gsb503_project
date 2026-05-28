@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import plotly.graph_objects as go
-import numpy as np
 
 st.markdown("""
 <style>
@@ -27,7 +25,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-from utils import load_data_for_developer, load_data, CLUSTER_COLORS
+from utils import load_developer_sample, CLUSTER_COLORS
 
 plt.rcParams.update({
     "figure.facecolor": "#0d0d0d", "axes.facecolor": "#0d0d0d",
@@ -37,7 +35,6 @@ plt.rcParams.update({
     "font.family": "monospace", "font.size": 10,
 })
 
-NVIDIA_GREEN  = "#76b900"
 ACCENT_COLORS = ["#76b900","#00c2ff","#ff6b35","#b39ddb","#ffca28","#ef9a9a","#80cbc4","#f48fb1","#ce93d8","#a5d6a7"]
 
 
@@ -72,11 +69,11 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
 
     c1, c2, c3, c4, c5 = st.columns(5)
     for col, label, value, sub in [
-        (c1, "Total Activities", f"{total_activities:,}",          "interactions logged"),
-        (c2, "Activity Types",   f"{activity_types}",               "distinct activities"),
-        (c3, "Avg Score",        f"{avg_score:.1f}",                f"σ = {std_score:.2f}"),
-        (c4, "Longest Gap",      f"{longest_gap}d",                 "between activities"),
-        (c5, "Last Seen",        last_seen.strftime("%b %d, %Y"),   ""),
+        (c1, "Total Activities", f"{total_activities:,}",        "interactions logged"),
+        (c2, "Activity Types",   f"{activity_types}",             "distinct activities"),
+        (c3, "Avg Score",        f"{avg_score:.1f}",              f"σ = {std_score:.2f}"),
+        (c4, "Longest Gap",      f"{longest_gap}d",               "between activities"),
+        (c5, "Last Seen",        last_seen.strftime("%b %d, %Y"), ""),
     ]:
         with col:
             st.markdown(f"""<div class="metric-card">
@@ -92,12 +89,12 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
     with left_col:
         st.markdown('<div class="section-header">Developer Details</div>', unsafe_allow_html=True)
         details = {
-            "Organization":  row0.get("normalized_account_name", "—"),
-            "Country":       row0.get("country", "—"),
-            "Region":        row0.get("region", "—"),
-            "Industry":      row0.get("industry_segment_vertical", "—"),
-            "Dev Areas":     row0.get("development_areas", "—"),
-            "Account Type":  row0.get("account_type", "—"),
+            "Organization":   row0.get("normalized_account_name", "—"),
+            "Country":        row0.get("country", "—"),
+            "Region":         row0.get("region", "—"),
+            "Industry":       row0.get("industry_segment_vertical", "—"),
+            "Dev Areas":      row0.get("development_areas", "—"),
+            "Account Type":   row0.get("account_type", "—"),
             "First Activity": dev_df["activity_date"].min().strftime("%b %d, %Y"),
             "Last Activity":  last_seen.strftime("%b %d, %Y"),
         }
@@ -113,11 +110,13 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
         act_counts = dev_df["activity"].value_counts()
         colors     = [ACCENT_COLORS[i % len(ACCENT_COLORS)] for i in range(len(act_counts))]
         fig, ax    = plt.subplots(figsize=(5, max(2, len(act_counts) * 0.4)))
-        bars = ax.barh(act_counts.index[::-1], act_counts.values[::-1], color=colors[::-1], height=0.6)
+        bars = ax.barh(act_counts.index[::-1], act_counts.values[::-1],
+                       color=colors[::-1], height=0.6)
         for bar, val in zip(bars, act_counts.values[::-1]):
             ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height()/2,
                     str(val), va="center", ha="left", color="#ffffff", fontsize=9)
-        ax.set_xlabel("Count", color="#ffffff"); ax.tick_params(colors="#ffffff")
+        ax.set_xlabel("Count", color="#ffffff")
+        ax.tick_params(colors="#ffffff")
         ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
         fig.tight_layout()
         st.pyplot(fig, use_container_width=True)
@@ -129,7 +128,8 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
     act_types = dev_df["activity"].unique()
     color_map = {a: ACCENT_COLORS[i % len(ACCENT_COLORS)] for i, a in enumerate(act_types)}
     dev_df    = dev_df.copy()
-    dev_df["label"] = dev_df["full_activity_name"].apply(lambda x: x[:45] + "…" if len(str(x)) > 45 else x)
+    dev_df["label"] = dev_df["full_activity_name"].apply(
+        lambda x: x[:45] + "…" if len(str(x)) > 45 else x)
 
     fig1 = go.Figure()
     for act_type in act_types:
@@ -137,27 +137,31 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
         fig1.add_trace(go.Scatter(
             x=sub["days_since_activity_1"], y=sub["label"],
             mode="markers", name=act_type,
-            marker=dict(size=10, color=color_map[act_type], line=dict(width=1, color="#0d0d0d")),
+            marker=dict(size=10, color=color_map[act_type],
+                        line=dict(width=1, color="#0d0d0d")),
             hovertemplate="<b>%{y}</b><br>Day %{x}<extra></extra>",
         ))
     fig1.update_layout(
         paper_bgcolor="#0d0d0d", plot_bgcolor="#0d0d0d",
         font=dict(color="#ffffff", family="monospace", size=10),
-        xaxis=dict(title="Days since first activity", gridcolor="#444444", zeroline=False,
-                   showline=False, tickfont=dict(color="#ffffff")),
-        yaxis=dict(gridcolor="#2a2a2a", showline=False, tickfont=dict(color="#ffffff"), automargin=True),
+        xaxis=dict(title="Days since first activity", gridcolor="#444444",
+                   zeroline=False, showline=False, tickfont=dict(color="#ffffff")),
+        yaxis=dict(gridcolor="#2a2a2a", showline=False,
+                   tickfont=dict(color="#ffffff"), automargin=True),
         legend=dict(title="Activity Type", bgcolor="#111111", bordercolor="#2a2a2a",
                     borderwidth=1, font=dict(color="#aaaaaa")),
         margin=dict(l=280, r=20, t=20, b=60),
         height=max(400, len(dev_df["label"].unique()) * 80),
-        hoverlabel=dict(bgcolor="#1a1a1a", bordercolor="#76b900", font=dict(color="#ffffff", size=12)),
+        hoverlabel=dict(bgcolor="#1a1a1a", bordercolor="#76b900",
+                        font=dict(color="#ffffff", size=12)),
     )
     st.plotly_chart(fig1, use_container_width=True)
 
     with st.expander("📋 Raw Activity Log", expanded=False):
-        display_cols = ["activity_date","activity","activity_name","activity_type","activity_score","days_since_activity_1"]
-        available    = [c for c in display_cols if c in dev_df.columns]
-        tbl          = dev_df[available].sort_values("activity_date", ascending=False).reset_index(drop=True)
+        display_cols = ["activity_date", "activity", "activity_name",
+                        "activity_type", "activity_score", "days_since_activity_1"]
+        available = [c for c in display_cols if c in dev_df.columns]
+        tbl = dev_df[available].sort_values("activity_date", ascending=False).reset_index(drop=True)
         tbl["activity_date"] = tbl["activity_date"].dt.strftime("%Y-%m-%d")
         st.dataframe(tbl, use_container_width=True, hide_index=True)
 
@@ -169,7 +173,7 @@ with st.sidebar:
 
     try:
         with st.spinner("Loading developers..."):
-            meta = load_data()[[
+            meta = load_developer_sample()[[
                 "developer_id", "country", "normalized_account_name",
                 "activity", "industry_segment_vertical", "cluster_name"
             ]]
@@ -219,9 +223,12 @@ if not developer_id:
     st.markdown("""
     <div style="margin-top:80px;text-align:center;color:#333;">
         <div style="font-size:48px;margin-bottom:16px;">👤</div>
-        <div style="font-size:18px;color:#555;font-family:monospace;">Select a developer ID from the sidebar</div>
+        <div style="font-size:18px;color:#555;font-family:monospace;">
+            Select a developer ID from the sidebar
+        </div>
     </div>""", unsafe_allow_html=True)
 else:
     with st.spinner("Loading developer profile..."):
-        df = load_data_for_developer(developer_id)
-    render_profile_card(developer_id, df)
+        full_df  = load_developer_sample()
+        dev_df   = full_df[full_df["developer_id"].astype(str) == str(developer_id)]
+    render_profile_card(developer_id, dev_df)

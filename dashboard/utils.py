@@ -122,6 +122,75 @@ def _read_parquet_from_s3(key: str) -> pd.DataFrame:
 
 
 @st.cache_data
+def load_developer_sample() -> pd.DataFrame:
+    """Load full data but sampled to 20,000 random developers for the single dev page."""
+    df = _read_parquet_from_s3("dashboard_ready.parquet")
+    df["cluster_name"] = df["cluster"].map(CLUSTER_NAME_MAP)
+    df["activity_date"] = pd.to_datetime(df["activity_date"], utc=True, errors="coerce")
+    df["first_activity_date"] = pd.to_datetime(df["first_activity_date"], utc=True, errors="coerce")
+    # Sample 20,000 random developers
+    sample_devs = df["developer_id"].drop_duplicates().sample(n=20000, random_state=42)
+    return df[df["developer_id"].isin(sample_devs)]
+
+
+@st.cache_data
+def load_precomputed(filename: str) -> pd.DataFrame:
+    """Load a precomputed parquet file from S3."""
+    return _read_parquet_from_s3(filename)
+
+# ── Group Trends ──────────────────────────────────────────────────────────────
+@st.cache_data
+def load_gt_kpis() -> pd.DataFrame:
+    return _read_parquet_from_s3("gt_kpis.parquet")
+
+@st.cache_data
+def load_gt_cluster_dist() -> pd.DataFrame:
+    return _read_parquet_from_s3("gt_cluster_dist.parquet")
+
+@st.cache_data
+def load_gt_sequences() -> pd.DataFrame:
+    return _read_parquet_from_s3("gt_sequences_top3.parquet")
+
+@st.cache_data
+def load_gt_transition_pairs() -> pd.DataFrame:
+    return _read_parquet_from_s3("gt_transition_pairs.parquet")
+
+# ── Geographic ────────────────────────────────────────────────────────────────
+@st.cache_data
+def load_geo_kpis() -> pd.DataFrame:
+    return _read_parquet_from_s3("geo_kpis.parquet")
+
+@st.cache_data
+def load_geo_activity_mix() -> pd.DataFrame:
+    return _read_parquet_from_s3("geo_activity_mix.parquet")
+
+@st.cache_data
+def load_geo_cluster_breakdown() -> pd.DataFrame:
+    return _read_parquet_from_s3("geo_cluster_breakdown.parquet")
+
+@st.cache_data
+def load_geo_sequences() -> pd.DataFrame:
+    return _read_parquet_from_s3("geo_sequences_top3.parquet")
+
+# ── Org Analysis ──────────────────────────────────────────────────────────────
+@st.cache_data
+def load_org_kpis() -> pd.DataFrame:
+    return _read_parquet_from_s3("org_kpis.parquet")
+
+@st.cache_data
+def load_org_activity_mix() -> pd.DataFrame:
+    return _read_parquet_from_s3("org_activity_mix.parquet")
+
+@st.cache_data
+def load_org_cluster_breakdown() -> pd.DataFrame:
+    return _read_parquet_from_s3("org_cluster_breakdown.parquet")
+
+@st.cache_data
+def load_org_sequences() -> pd.DataFrame:
+    return _read_parquet_from_s3("org_sequences_top3.parquet")
+
+
+@st.cache_data
 def load_data() -> pd.DataFrame:
     """Load dashboard_ready.parquet from S3."""
     df = _read_parquet_from_s3("dashboard_ready.parquet")
