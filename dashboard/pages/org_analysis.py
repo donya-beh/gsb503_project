@@ -60,8 +60,8 @@ def plot_cluster_comparison(df, org_names, show_org_labels=True):
         barmode="stack", paper_bgcolor="#0d0d0d", plot_bgcolor="#0d0d0d",
         font=dict(color="#ffffff", family="monospace", size=11),
         xaxis=dict(title="% of Developers", range=[0, 100], ticksuffix="%",
-                   gridcolor="#2a2a2a", zeroline=False, showline=False, tickcolor="#ffffff"),
-        yaxis=dict(showline=False, tickcolor="#ffffff", automargin=True, showticklabels=show_org_labels),
+                   gridcolor="#2a2a2a", zeroline=False, showline=False, tickfont=dict(color="#ffffff")),
+        yaxis=dict(showline=False, tickfont=dict(color="#ffffff"), automargin=True, showticklabels=show_org_labels),
         legend=dict(title="Developer Type", bgcolor="#111111", bordercolor="#2a2a2a",
                     borderwidth=1, font=dict(color="#aaaaaa"), itemsizing="constant",
                     tracegroupgap=0, yanchor="top", y=1, xanchor="left", x=1.01),
@@ -96,8 +96,8 @@ def plot_activity_mix(df, org_names, show_titles=True):
             showlegend=False,
         ), row=1, col=j + 1)
         fig.update_xaxes(ticksuffix="%", gridcolor="#2a2a2a", zeroline=False, showline=False,
-                         tickcolor="#ffffff", range=[0, org_max_pcts[j] * 1.3], row=1, col=j + 1)
-        fig.update_yaxes(showline=False, tickcolor="#ffffff", automargin=True, row=1, col=j + 1)
+                         tickfont=dict(color="#ffffff"), range=[0, org_max_pcts[j] * 1.3], row=1, col=j + 1)
+        fig.update_yaxes(showline=False, tickfont=dict(color="#ffffff"), automargin=True, row=1, col=j + 1)
     max_bars = max(df[df["normalized_account_name"] == org]["activity"].nunique() for org in org_names)
     fig.update_layout(
         paper_bgcolor="#0d0d0d", plot_bgcolor="#0d0d0d",
