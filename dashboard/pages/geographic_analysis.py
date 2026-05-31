@@ -28,6 +28,9 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 
 from utils import load_geo_kpis, load_geo_activity_mix, load_geo_cluster_breakdown, load_geo_sequences, load_sdk_for_country, CLUSTER_COLORS, ACCENT_COLORS, POPULATION
 from predictive import render_geo_predictive
+from predictive import render_geo_map, render_geo_predictive
+# near the top of the Developer Profiles tab:
+render_geo_map()
 
 
 def plot_world_map(all_countries_list, selected_countries=None):

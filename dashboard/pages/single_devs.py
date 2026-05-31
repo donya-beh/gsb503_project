@@ -173,7 +173,7 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
         tbl["activity_date"] = tbl["activity_date"].dt.strftime("%Y-%m-%d")
         st.dataframe(tbl, use_container_width=True, hide_index=True)
 
-    render_dev_predictive(developer_id)
+    render_dev_predictive(developer_id, dev_history_df=dev_df)
 
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
