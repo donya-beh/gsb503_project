@@ -202,6 +202,14 @@ try:
     if mode == "All":
         st.markdown('<div class="section-header">Cluster Breakdown</div>',
                     unsafe_allow_html=True)
+        with st.expander("ℹ️ About these clusters"):
+            st.markdown("""
+            - **Passive Users** — Low-activity users with minimal technical usage, but ecosystem entry through memberships or basic DevZone actions.
+            - **Training & Event Attendees** — Learning-oriented users with strong training and event participation, but lower technical activity.
+            - **Technical Power Users** — Highly active users with broad platform engagement, but low event and training participation.
+            - **True Unicorns** — High-adoption benchmark users with balanced engagement across technical activity, training, recency, and broader ecosystem behaviors.
+            - **Casual Participants** — Users with limited overall activity who engage selectively in memberships, approvals, and participation-based programs.
+            """)
         st.plotly_chart(plot_cluster_distribution(dist_df), use_container_width=True)
         st.markdown("<br>", unsafe_allow_html=True)
 

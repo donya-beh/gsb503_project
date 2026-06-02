@@ -187,7 +187,7 @@ try:
                 (c1, "Total Developers", f"{int(row['total_developers']):,}", "unique developers"),
                 (c2, "Total Activities", f"{int(row['total_activities']):,}", "interactions logged"),
                 (c3, "Activity Types",   f"{int(row['activity_types'])}",     "distinct activities"),
-                (c4, "Avg Score",        f"{row['avg_score']}",               f"σ = {row['std_score']}"),
+                (c4, "Avg Score", f"{round(float(row['avg_score']), 2):.2f}", f"σ = {round(float(row['std_score']), 2):.2f}"),
                 (c5, "Top Cluster",      str(row["top_cluster"]),             ""),
             ]:
                 with col:
@@ -218,6 +218,14 @@ try:
         st.markdown('<div class="section-header">Developer Type Breakdown</div>',
                     unsafe_allow_html=True)
         cluster_view = cluster_df[cluster_df["normalized_account_name"].isin(selected_orgs)]
+        with st.expander("ℹ️ About these clusters"):
+            st.markdown("""
+            - **Passive Users** — Low-activity users with minimal technical usage, but ecosystem entry through memberships or basic DevZone actions.
+            - **Training & Event Attendees** — Learning-oriented users with strong training and event participation, but lower technical activity.
+            - **Technical Power Users** — Highly active users with broad platform engagement, but low event and training participation.
+            - **True Unicorns** — High-adoption benchmark users with balanced engagement across technical activity, training, recency, and broader ecosystem behaviors.
+            - **Casual Participants** — Users with limited overall activity who engage selectively in memberships, approvals, and participation-based programs.
+            """)
         st.plotly_chart(plot_cluster_breakdown(cluster_view, selected_orgs),
                         use_container_width=True)
         st.markdown("<br>", unsafe_allow_html=True)

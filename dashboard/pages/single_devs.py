@@ -78,7 +78,7 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
     for col, label, value, sub in [
         (c1, "Total Activities", f"{total_activities:,}",                       "interactions logged"),
         (c2, "Activity Types",   f"{activity_types}",                            "distinct activities"),
-        (c3, "Avg Score",        f"{round(float(avg_score), 2):.2f}",           f"σ = {round(float(std_score), 2):.2f}"),
+        (c3, "Avg Activity Score",        f"{round(float(avg_score), 2):.2f}",           f"σ = {round(float(std_score), 2):.2f}"),
         (c4, "Longest Gap",      f"{longest_gap}d",                              "between activities"),
         (c5, "Last Seen",        last_seen.strftime("%b %d, %Y"),               ""),
     ]:
@@ -138,6 +138,7 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
     dev_df    = dev_df.copy()
     dev_df["label"] = dev_df["full_activity_name"].apply(
         lambda x: x[:45] + "…" if len(str(x)) > 45 else x)
+    dev_df = dev_df.sort_values("days_since_activity_1")
 
     fig1 = go.Figure()
     for act_type in act_types:
@@ -158,7 +159,7 @@ def render_profile_card(developer_id: str, df: pd.DataFrame):
                    tickfont=dict(color="#ffffff"), automargin=True),
         legend=dict(title="Activity Type", bgcolor="#111111", bordercolor="#2a2a2a",
                     borderwidth=1, font=dict(color="#aaaaaa")),
-        margin=dict(l=280, r=20, t=20, b=60),
+        margin=dict(l=400, r=20, t=20, b=60),
         height=max(400, len(dev_df["label"].unique()) * 80),
         hoverlabel=dict(bgcolor="#1a1a1a", bordercolor="#76b900",
                         font=dict(color="#ffffff", size=12)),
