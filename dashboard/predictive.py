@@ -376,9 +376,19 @@ def _workflow_figure(nodes: list) -> go.Figure:
                       line=dict(width=0), fillcolor=accent, layer="below")
         fig.add_annotation(x=cx, y=y_top - 0.30, text=kicker, showarrow=False,
                            font=dict(family="DM Mono, monospace", size=10, color=accent))
-        disp = label if len(label) <= 18 else label[:17] + "…"
+        words = label.split()
+        lines, cur = [], ""
+        for w in words:
+            if len(cur) + len(w) + 1 > 16:
+                if cur: lines.append(cur)
+                cur = w
+            else:
+                cur = (cur + " " + w).strip()
+        if cur: lines.append(cur)
+        disp = "<br>".join(lines)
         fig.add_annotation(x=cx, y=0.02, text=f"<b>{disp}</b>", showarrow=False,
-                           font=dict(family="DM Sans, sans-serif", size=14, color="#f5f5f5"))
+                        font=dict(family="DM Sans, sans-serif", size=14, color="#f5f5f5"),
+                        align="center")
         if i < n - 1:
             fig.add_annotation(x=(i + 1) * x_gap - half_w, y=0,
                                ax=cx + half_w, ay=0,
@@ -386,7 +396,7 @@ def _workflow_figure(nodes: list) -> go.Figure:
                                showarrow=True, arrowhead=3, arrowsize=1.6,
                                arrowwidth=2.5, arrowcolor="#76b900")
     fig.update_layout(
-        height=210, paper_bgcolor="#0d0d0d", plot_bgcolor="#0d0d0d",
+        height=240, paper_bgcolor="#0d0d0d", plot_bgcolor="#0d0d0d",
         margin=dict(l=12, r=12, t=8, b=8), showlegend=False,
         xaxis=dict(visible=False, range=[-0.6, (n - 1) * x_gap + 0.6],
                    fixedrange=True),
@@ -435,11 +445,19 @@ def render_org_predictive(org_name: str) -> None:
     dom = s["dominant_cluster"]
     play = CLUSTER_PLAY.get(dom)
     if play:
-        scale = ("This account has a high density of elite developers — treat it as a "
-                 "full-scale adoption / expansion target."
-                 if s["pct_high"] >= 5 else
-                 "Most developers here are early in their journey — focus on moving the "
-                 "majority one step deeper.")
+        # Factual footer only — high-value density vs the 1% baseline. No
+        # behavioral claim that could contradict the dominant-cluster play
+        # (e.g. an account of advanced Technical Power Users should never read
+        # "early in their journey"). The number speaks for itself.
+        if s["pct_high"] >= 5:
+            scale = (f"High-value density is {s['pct_high']:.1f}% — "
+                     f"{lift:.0f}× the 1% baseline. A standout account.")
+        elif s["pct_high"] >= GLOBAL_BASELINE_RATE * 100:
+            scale = (f"High-value density is {s['pct_high']:.1f}% — "
+                     f"above the 1% baseline.")
+        else:
+            scale = (f"High-value density is {s['pct_high']:.1f}% — "
+                     f"at or below the 1% baseline.")
         items = "".join(
             f'<div class="rec-item"><span class="rec-arrow">▸</span>{a}</div>'
             for a in play["actions"])
