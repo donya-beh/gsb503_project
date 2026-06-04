@@ -187,7 +187,7 @@ try:
                 (c1, "Total Developers", f"{int(row['total_developers']):,}", "unique developers"),
                 (c2, "Total Activities", f"{int(row['total_activities']):,}", "interactions logged"),
                 (c3, "Activity Types",   f"{int(row['activity_types'])}",     "distinct activities"),
-                (c4, "Avg Score", f"{round(float(row['avg_score']), 2):.2f}", f"σ = {round(float(row['std_score']), 2):.2f}"),
+                (c4, "Avg Activity Score", f"{round(float(row['avg_score']), 2):.2f}", f"σ = {round(float(row['std_score']), 2):.2f}"),
                 (c5, "Top Cluster",      str(row["top_cluster"]),             ""),
             ]:
                 with col:
@@ -208,7 +208,7 @@ try:
                     "Developers":     int(r["total_developers"]),
                     "Activities":     int(r["total_activities"]),
                     "Activity Types": int(r["activity_types"]),
-                    "Avg Score":      r["avg_score"],
+                    "Avg Activity Score":      r["avg_score"],
                     "Top Cluster":    r["top_cluster"],
                 })
             st.dataframe(pd.DataFrame(rows).set_index("Organization"),

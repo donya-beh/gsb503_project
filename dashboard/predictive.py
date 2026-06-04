@@ -307,10 +307,17 @@ def render_dev_predictive(developer_id: str, dev_history_df: pd.DataFrame | None
     total = len(pred)
     tier_label, tier_color = _tier(r["priority_tier_name"])
 
+    # Three forward-looking views of the SAME prediction so they tell one
+    # coherent story: absolute rank, where that sits as a percentile, and the
+    # calibrated probability. (We intentionally do NOT show the raw Dev Value
+    # here — that's the backward-looking training label, it reads 0.00 for ~98%
+    # of developers, and putting truth next to a prediction is confusing. Dev
+    # Value lives in the group-level validation table, averaged by cluster.)
+    pct = float(r["priority_percentile"]) if "priority_percentile" in r else (
+        100.0 * (1 - (int(r["priority_rank"]) - 1) / total))
     c1, c2, c3 = st.columns(3)
     _metric(c1, "Developer Rank", f"#{int(r['priority_rank']):,}", f"of {total:,} scored")
-    _metric(c2, "Dev Value Score", f"{float(r['future_dev_value']):.2f}",
-            "activity value (90-day)")
+    _metric(c2, "Percentile", f"Top {max(0.01, 100 - pct):.1f}%", "by predicted value")
     _metric(c3, "Top-1% Probability", f"{float(r['priority_score'])*100:.1f}%",
             "chance of elite status")
 
@@ -694,6 +701,22 @@ def render_geo_predictive(country: str) -> None:
             <div class="rec-focus">Dominant profile: {s['dominant_cluster']} · {play['focus']}</div>
             {items}
         </div>""", unsafe_allow_html=True)
+
+    # Top organizations in this country (the country-level table). Lives here so
+    # the geo level keeps its table whether or not the standalone map is used.
+    orgs = _orgs_by_country()
+    co = orgs[orgs["country"] == country].head(10).copy()
+    if len(co):
+        st.markdown(f'<div class="pred-section">Top organizations · {country}</div>',
+                    unsafe_allow_html=True)
+        disp = pd.DataFrame({
+            "Organization": co["normalized_account_name"],
+            "Developers": co["developers"].map("{:,}".format),
+            "High-Value": co["high_value"].map("{:,}".format),
+            "% High-Value": co["pct_high"].map("{:.1f}%".format),
+            "Avg Priority": co["avg_priority"].map("{:.1f}%".format),
+        })
+        st.dataframe(disp, use_container_width=True, hide_index=True)
 
 
 # ── 4 · GROUP / OVERALL ──────────────────────────────────────────────────────────
